@@ -1,4 +1,4 @@
-from qiskit import QuantumCircuit, QuantumRegister, transpile
+from qiskit import QuantumCircuit, transpile, ClassicalRegister
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel,  ReadoutError, depolarizing_error
 from qiskit_ibm_runtime import QiskitRuntimeService
@@ -14,12 +14,12 @@ def make_decoy(qc: QuantumCircuit, q:int, basis: str, sign: str):
     if basis == 'X':
         qc.h(q)
         if sign == '-':
-            qc.x(q)
+            qc.z(q)
     elif basis == 'Y':
         qc.h(q)
         qc.s(q)
         if sign == '-':
-            qc.x(q)
+            qc.z(q)
 def projective_measurement_in_basis(qc: QuantumCircuit, q:int, c:int, basis:str):
     if basis == 'X':
         qc.h(q)
@@ -42,8 +42,30 @@ def eve_does_random_unitary_op(qc: QuantumCircuit, target_qubits: list[int], pro
             else:
                 qc.z(qubit)
 
-def eve_intercept_resend(qc: QuantumCircuit):
-    pass
+def eve_intercept_resend(qc: QuantumCircuit, probability: float, random_generator: random.Random):
+    eve_classical_register = ClassicalRegister(qc.num_qubits)
+    qc.add_register(eve_classical_register)
+    for qubit in range(qc.num_qubits):
+        if random_generator.random() <= probability:
+            gate = random_generator.choice(["X","Y","Z"])
+            if gate == 'X':
+                qc.h(qubit)
+            elif gate == 'Y':
+                qc.sdg(qubit)
+                qc.h(qubit)
+            qc.measure(qubit, eve_classical_register[qubit])
+            qc.reset(qubit)
+            if gate == 'X':
+                qc.h(qubit)
+                if eve_classical_register[qubit] == 1:
+                    qc.z(qubit)
+            elif gate == 'Y':
+                qc.h(qubit)
+                qc.s(qubit)
+                if eve_classical_register[qubit] == 1:
+                    qc.z(qubit)
+
+
 def create_noise_model():
     QiskitRuntimeService.save_account(token=os.getenv("IBM_API_KEY"), instance=os.getenv("INSTANCE_CRN"),overwrite=True)
     service = QiskitRuntimeService()
@@ -52,4 +74,5 @@ def create_noise_model():
     return noise_model
 def ring_quantum_circuit(number_of_qubits: int, decoy_pos: list[int], links: list[str], eve_attack_times: list[int],
                           random_generator: random.Random, eve: str = "off", eve_attack_probability :float = 3):
-    pass
+    
+    qc = QuantumCircuit(number_of_qubits)
