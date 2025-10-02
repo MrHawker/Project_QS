@@ -72,7 +72,49 @@ def create_noise_model():
     least_busy_back_end = service.least_busy()
     noise_model = NoiseModel.from_backend(least_busy_back_end)
     return noise_model
-def ring_quantum_circuit(number_of_qubits: int, decoy_pos: list[int], links: list[str], eve_attack_times: list[int],
+
+def decoys_data_positions(random_generator:random.Random, number_of_qubits:int, number_of_decoys:int)-> tuple[list[int],list[int]]:
+    decoys_positions = random_generator.sample(range(number_of_qubits),k=number_of_decoys)
+    data_positions = []
+    for i in range(number_of_qubits):
+        if i not in decoys_positions:
+            data_positions.append(i)
+    return decoys_positions,data_positions
+#Uses swap gate to move data qubits around while maintaining their relative positions with one another
+def rearrange_data_qubits_in_circuits(qc:QuantumCircuit, current_data_positions:list[int], target_data_positions:list[int]):
+    if len(current_data_positions) != len(target_data_positions):
+        raise ValueError("Unequal length")
+    n = len(current_data_positions)
+    position_to_index = {}
+    for i in range(n):
+        position_to_index[current_data_positions[i]] = i
+    for i in range(n):
+        source = current_data_positions[i]
+        destination = target_data_positions[i]
+        if source == destination:
+            continue
+        try:
+            k = position_to_index[destination]
+        except:
+            k = None
+        qc.swap(source,destination)
+        current_data_positions[i] = destination
+        position_to_index[destination] = i
+        if k is None:
+            position_to_index.pop(source,None)
+        else:
+            current_data_positions[k] = source
+            position_to_index[source] = k
+            
+def ring_quantum_circuit(number_of_qubits: int, decoy_rate:float, links: list[str], eve_attack_times: list[int],
                           random_generator: random.Random, eve: str = "off", eve_attack_probability :float = 3):
     
     qc = QuantumCircuit(number_of_qubits)
+    number_of_decoys = int(number_of_qubits*decoy_rate)
+    #Each iteration represent a send and receive step between Pi and Pi+1
+    for i in range(len(links)):
+        sender = links[i]
+        reciever = links[(i+1) % len(links)]
+        qc.barrier(label=f"{sender} make decoys")
+        decoys_positions,data_positions = decoys_data_positions(random_generator,number_of_qubits,number_of_decoys)
+
