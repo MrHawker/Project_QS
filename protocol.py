@@ -66,11 +66,15 @@ def eve_intercept_resend(qc: QuantumCircuit, probability: float, random_generato
                     qc.z(qubit)
 
 
-def create_noise_model():
-    QiskitRuntimeService.save_account(token=os.getenv("IBM_API_KEY"), instance=os.getenv("INSTANCE_CRN"),overwrite=True)
-    service = QiskitRuntimeService()
-    least_busy_back_end = service.least_busy()
-    noise_model = NoiseModel.from_backend(least_busy_back_end)
+def create_noise_model() -> NoiseModel | None:
+    try:
+        QiskitRuntimeService.save_account(token=os.getenv("IBM_API_KEY"), instance=os.getenv("INSTANCE_CRN"),overwrite=True)
+        service = QiskitRuntimeService()
+        least_busy_back_end = service.least_busy()
+        noise_model = NoiseModel.from_backend(least_busy_back_end)
+    except Exception as e:
+        print(e)
+        return None
     return noise_model
 
 def decoys_data_positions(random_generator:random.Random, number_of_qubits:int, number_of_decoys:int)-> tuple[list[int],list[int]]:
@@ -170,10 +174,13 @@ def ring_quantum_circuit(number_of_qubits: int, decoy_rate:float, number_of_part
 
         # Now encode data with either I or Y
         qc.barrier(label=f"{sender} encode Y ")
+        senders_key = []
         for position  in data_positions:
-            if random_generator.randint(0,1) == 1:
+            senders_key.append(random_generator.randint(0,1))
+            if senders_key[-1] == 1:
                 qc.x(position)
                 qc.z(position)
+        print(f"Sender {sender} key is: ", senders_key)
     qc.barrier(label="Final measurement to reveal key")
     for i in range(len(current_data_positions)):
         qc.measure(current_data_positions[i], data_register[i])
@@ -198,7 +205,10 @@ def run_protocol(seed:int, number_of_participants:int, eve_attack_mode:str, eve_
                                                         eve_attack_times,random_generator,eve_attack_mode,eve_attack_probability)
     qc.draw(output="mpl", filename="ring_circuit.png")
     noise_model = create_noise_model()
-    back_end = AerSimulator(noise_model)
+    if noise_model != None:
+        back_end = AerSimulator(noise_model)
+    else:
+        back_end = AerSimulator()
     transpiled_circuit = transpile(qc,back_end)
     result = back_end.run(transpiled_circuit, shot=1,memory=True).result()
     memory = result.get_memory(transpiled_circuit)[0]
