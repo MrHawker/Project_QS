@@ -217,7 +217,6 @@ def run_protocol(seed:int, number_of_participants:int, eve_attack_mode:str, eve_
     # Should contain 3 type of register, belonging to eve, decoys and data
     # Eve's register is the first one, follows by 'number_of_participants' number of decoy register (one for each turn) and finally data's register
     registers = memory.split(" ")[::-1]
-    print(registers)
     index = 0
     if eve_attack_mode == "intercept_resend":
         index += 1
@@ -229,7 +228,6 @@ def run_protocol(seed:int, number_of_participants:int, eve_attack_mode:str, eve_
             decoy_measurement_result.append(int(temp[j]))
         expected_measurement_result = expected_decoys_measurements[i]
         qber = caculate_qber(decoy_measurement_result,expected_measurement_result)
-        print(qber)
         if qber > QBER_THRESHOLD:
             print(f"TOO MUCH ERROR, PROTOCOL ABANDONED. QBER = ",qber)
             passed = False
@@ -241,11 +239,11 @@ def run_protocol(seed:int, number_of_participants:int, eve_attack_mode:str, eve_
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--eve_mode", type=str, default="off",
-                        choices=["off", "random_stuff_go", "intercept_resend"],
+                        choices=["off", "intercept_resend"],
                         help="Eve's attack mode.")
     parser.add_argument("--eve_p", type=float, default=0.3,
                         help="Eve's per-qubit attack probability in [0,1].")
-    parser.add_argument("--n_parties", type=int, default=3,
+    parser.add_argument("--n_parties", type=int, default=5,
                         help="Number of participants in the ring.")
     parser.add_argument("--seed", type=int, default=77777,
                         help="Random seed for reproducibility.")
