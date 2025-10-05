@@ -243,7 +243,7 @@ if __name__ == "__main__":
                         help="Eve's attack mode.")
     parser.add_argument("--eve_p", type=float, default=0.3,
                         help="Eve's per-qubit attack probability in [0,1].")
-    parser.add_argument("--n_parties", type=int, default=5,
+    parser.add_argument("--n_participants", type=int, default=5,
                         help="Number of participants in the ring.")
     parser.add_argument("--seed", type=int, default=77777,
                         help="Random seed for reproducibility.")
